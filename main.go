@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -23,12 +24,13 @@ consuer will read values and insert to database.
 Producer of data
 */
 func generateData() {
-	for index := 1; index != 5000; index++ {
+	for index := 1; index <= 5000; index++ {
 		user := models.User{Id: strconv.Itoa(index), Firstname: "John", Lastname: "Doe", Msisdn: "12345678"}
-		log.Printf("Adding of users done.: %s", user)
+		fmt.Printf("Adding of users done.: %s, index: %s", user, strconv.Itoa(index))
+		fmt.Println()
 		repository.AddUser(&user)
 	}
-	log.Println("producing data completed.")
+	fmt.Println("producing data completed.")
 }
 
 func createWatcher() *fsnotify.Watcher {
@@ -45,7 +47,13 @@ func createWatcher() *fsnotify.Watcher {
 				if event.Op.String() == "CREATE" && strings.Contains(event.Name, "users.txt") {
 					generateData()
 					os.Remove("./feed/users.txt")
-					log.Println("file has been cleaned up.")
+					fmt.Println("file has been cleaned up.")
+				} else if event.Op.String() == "CREATE" && strings.Contains(event.Name, "process.txt") {
+					go batchProcess()
+					os.Remove("./feed/process.txt")
+					fmt.Println("file has been cleaned up. process.txt")
+				} else {
+					fmt.Println("File watcher default")
 				}
 			case error := <-watcher.Errors:
 				fmt.Println("ERROR:", error)
@@ -55,40 +63,63 @@ func createWatcher() *fsnotify.Watcher {
 	return watcher
 }
 
+/*
+Producer function will retrieve data from database users,
+modify data and pass to channel for consumers to retrieve
+*/
+func produce() {
+	users := repository.GetAllUsers()
+	if len(users) == 0 {
+		fmt.Println("No records to process")
+		return
+	}
+	log.Println("Processing number of users: ", len(users))
+	var batchUsers []models.User
+	for _, user := range users {
+		timeString := time.Now().String()
+		user.Firstname = user.Firstname + timeString
+		user.Lastname = user.Lastname + timeString
+		batchUsers = append(batchUsers, user)
+		if len(batchUsers) == 20 {
+			fmt.Println("Pushing to queue batchuser: ", batchUsers)
+			queue <- batchUsers
+			fmt.Println("Clearing queue")
+			batchUsers = []models.User{}
+		}
+	}
+}
+
+/*
+retrieve from channel and update in database
+*/
+func consume() {
+	for {
+		users := <-queue
+		fmt.Println("received users from queue: ", users)
+		for _, user := range users {
+			fmt.Println("receive from queue: ", user)
+		}
+	}
+}
+
+func batchProcess() {
+	go produce()
+	go consume()
+}
+
+var (
+	queue        chan []models.User
+	commandQueue chan string
+)
+
 func main() {
+	log.Println("============== START ================")
+	queue = make(chan []models.User)
 	repository.CreateTable()
-	// fileWatchDone := make(chan bool)
 	watcher := createWatcher()
-	/* feedPath, error := os.Getwd()
-	if error != nil {
-		log.Println("Failed to get current working directory", error)
-	} */
 	error := watcher.Add("./feed")
 	if error != nil {
 		log.Println("Failed to add watch file users.txt", error)
 	}
-
-	defer watcher.Close()
-	var command string
-	fmt.Println("Enter a command:")
-	for {
-		_, error := fmt.Scanln(&command)
-		if error != nil {
-			log.Println("Reading user input error: ", error)
-			continue
-		}
-
-		switch command {
-		case "exit":
-			os.Exit(0)
-		default:
-			log.Println("Enter a valid command")
-		}
-	}
-	/* channel := make()
-	produce(&waitGroup)
-	log.Print("Waiting for go routines to finish")
-	waitGroup.Wait()
-	rows := repository.GetAllUsers()
-	log.Printf("Success fetched users: %s", rows) */
+	select {}
 }

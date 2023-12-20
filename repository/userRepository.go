@@ -13,14 +13,14 @@ func AddUser(user *models.User) {
 	connection := openDatabase()
 	statement, error := connection.Prepare("INSERT INTO users(id, firstname, lastname, msisdn) VALUES(?,?,?,?)")
 	if error != nil {
-		log.Panicf("Failed to prepare statement: %s", error)
+		log.Println("Failed to prepare statement: ", error)
 	}
-	statementResult, error := statement.Exec(user.Id, user.Firstname, user.Lastname, user.Msisdn)
+	statement.Exec(user.Id, user.Firstname, user.Lastname, user.Msisdn)
 	connection.Close()
-	if error != nil {
-		log.Panicf("Failed to execute prepared statement: %s", error)
-	}
-	log.Printf("Success statement result: %s", statementResult)
+	// if error != nil {
+	// 	log.Println("Failed to execute prepared statement: ", error)
+	// }
+	// log.Println("Success statement result: ", statementResult)
 }
 
 func GetAllUsers() []models.User {
@@ -28,14 +28,14 @@ func GetAllUsers() []models.User {
 	rows, error := connection.Query("SELECT * FROM users")
 	connection.Close()
 	if error != nil {
-		log.Panicf("Failed to retrieve users: %s", error)
+		log.Println("Failed to retrieve users: ", error)
 	}
 	var users []models.User
 	for rows.Next() {
 		var user models.User
 		error := rows.Scan(&user.Id, &user.Firstname, &user.Lastname, &user.Msisdn)
 		if error != nil {
-			log.Panicf("Failed to read fetched row: %s", error)
+			log.Println("Failed to read fetched row: ", error)
 		}
 		users = append(users, user)
 	}
@@ -49,16 +49,15 @@ func CreateTable() {
 	)
 	connection.Close()
 	if error != nil {
-		log.Panicf("Failed to create table: %s", error)
+		log.Println("Failed to create table: ", error)
 	}
-	log.Printf("Success create table: %s", result)
+	log.Println("Success create table: ", result)
 }
 
 func openDatabase() *sql.DB {
 	connection, error := sql.Open("sqlite3", "./users.db")
 	if error != nil {
-		log.Panicf("Failed to create connection: %s", error)
+		log.Println("Failed to create connection: ", error)
 	}
-	log.Printf("Success create connection: %s", connection)
 	return connection
 }
