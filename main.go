@@ -1,14 +1,15 @@
 package main
 
 import (
-	"consumer-producer/models"
-	"consumer-producer/repository"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vincentmegia/consumer-producer/models"
+	"github.com/vincentmegia/consumer-producer/repository"
 
 	"github.com/fsnotify/fsnotify"
 )

@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"consumer-producer/models"
 	"database/sql"
 	"log"
+
+	"github.com/vincentmegia/consumer-producer/models"
 
 	_ "github.com/jmrobles/h2go"
 	_ "github.com/mattn/go-sqlite3"
